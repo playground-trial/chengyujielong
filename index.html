@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>成语接龙极简沙盒</title>
+    <title>成语接龙自适应沙盒</title>
     <style>
         :root { --p-color: #2c3e50; --a-color: #e74c3c; --s-color: #2ecc71; }
         body { font-family: sans-serif; background: #f8f9fa; color: var(--p-color); padding: 20px; display: flex; justify-content: center; }
@@ -22,7 +22,6 @@
         .node-pinyin { font-size: 13px; color: #718096; margin-left: 10px; flex-grow: 1; }
         .action-btn { background: #3182ce; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
         .arrow { text-align: center; color: #a0aec0; font-size: 14px; margin: 2px 0; }
-        /* 弹窗样式 */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         .modal-content { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative; }
@@ -42,7 +41,7 @@
                 <option value="1">同字</option><option value="2">同音同调</option><option value="3">同音异调</option>
             </select>
         </div>
-        <div class="form-group">初始长度：<input type="number" id="maxLen" value="3" min="1"></div>
+        <div class="form-group">期望链条总长：<input type="number" id="maxLen" value="5" min="1"></div>
         <button id="startBtn" onclick="initGame()" disabled>正在加载词库...</button>
     </div>
     <div class="status-msg" id="statusMsg"></div>
@@ -62,7 +61,7 @@
 <script>
     let idiomList = [], idiomMap = {}, currentChain = [];
 
-    // 初始化：加载词库
+    // 初始化词库
     (async function() {
         try {
             const res = await fetch('https://cdn.jsdelivr.net/gh/pwxcoo/chinese-xinhua@master/data/idiom.json');
@@ -76,17 +75,17 @@
 
     const getPy = char => ({ withT: pinyinPro.pinyin(char, { toneType: 'symbol' }), noT: pinyinPro.pinyin(char, { toneType: 'none' }) });
 
-    // 核心规则校验
+    // 规则校验
     function checkRule(prev, curr, rule) {
         if (!prev) return true;
         const p = getPy(prev.charAt(3)), c = getPy(curr.charAt(0));
         return rule === '1' ? prev.charAt(3) === curr.charAt(0) : (rule === '2' ? p.withT === c.withT : p.noT === c.noT);
     }
 
-    // 生成子接龙数组
-    function genChain(start, rule, len, used) {
+    // 核心接龙生成器
+    function genChain(start, rule, targetLen, used) {
         const sub = [start], uSet = new Set(used).add(start);
-        while (sub.length < len) {
+        while (sub.length < targetLen) {
             const last = sub[sub.length - 1];
             const next = idiomList.find(i => !uSet.has(i.word) && checkRule(last, i.word, rule));
             if (!next) break;
@@ -95,26 +94,33 @@
         return sub;
     }
 
-    // 核心：处理所有的输入变化（统一支持中间层微调与最底层追加）
+    // 处理输入修改与级联长度自适应
     function handleInputChange(idx, inputEl) {
         const word = inputEl.value.trim(), rule = document.getElementById('ruleSelect').value, status = document.getElementById('statusMsg');
+        const targetTotalLen = parseInt(document.getElementById('maxLen').value) || 5; // 实时获取指定的最新期望长度
         if (!word) return;
 
+        // 基础格式与规则防错校验
         if (word.length !== 4 || !idiomMap[word] || (idx > 0 && !checkRule(currentChain[idx - 1], word, rule)) || currentChain.slice(0, idx).includes(word)) {
             status.innerText = `输入错误或不符规则！`;
             return render();
         }
 
         const prevUsed = currentChain.slice(0, idx);
-        if (idx === currentChain.length) { // 最底层追加
+        
+        if (idx === currentChain.length) { 
+            // 1. 最底层手动追加一行
             currentChain.push(word);
             status.innerText = "追加成功！";
-        } else { // 中间层修改，级联刷新
-            currentChain = prevUsed.concat(genChain(word, rule, currentChain.length - idx, prevUsed));
-            status.innerText = "修改成功，后续链条已重算！";
+            render();
+            setTimeout(() => document.getElementById('input-append')?.focus(), 50);
+        } else { 
+            // 2. 中间层修改：根据最新指定的“期望总长”，动态计算后面还需要补全多少个成语
+            const remainLen = Math.max(1, targetTotalLen - idx); 
+            currentChain = prevUsed.concat(genChain(word, rule, remainLen, prevUsed));
+            status.innerText = `微调成功！后续接龙已自动匹配并重算至指定的 ${currentChain.length} 层。`;
+            render();
         }
-        render();
-        if (idx === currentChain.length - 1) setTimeout(() => document.getElementById('input-append')?.focus(), 50); // 自动聚焦
     }
 
     function toggleModal(show, word = '') {
@@ -128,7 +134,6 @@
         }
     }
 
-    // 渲染主逻辑
     function render() {
         let html = '';
         currentChain.forEach((word, i) => {
@@ -140,7 +145,6 @@
                     <button class="action-btn" onclick="toggleModal(true, '${word}')">详情</button>
                 </div><div class="arrow">▼</div>`;
         });
-        // 动态拼装最底层的黄色待输入挑战框
         html += `
             <div class="idiom-node is-pending">
                 <span class="idiom-index" style="background:#f1c40f">${currentChain.length + 1}</span>
@@ -151,7 +155,7 @@
     }
 
     function initGame() {
-        const start = document.getElementById('startIdiom').value.trim(), len = parseInt(document.getElementById('maxLen').value) || 3, rule = document.getElementById('ruleSelect').value;
+        const start = document.getElementById('startIdiom').value.trim(), len = parseInt(document.getElementById('maxLen').value) || 5, rule = document.getElementById('ruleSelect').value;
         if (!idiomMap[start]) return document.getElementById('statusMsg').innerText = "起点词不在词库中！";
         currentChain = genChain(start, rule, len, []);
         render();
