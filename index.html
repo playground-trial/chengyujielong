@@ -1,654 +1,161 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>成语接龙级联游戏沙盒</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成语接龙极简沙盒</title>
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --accent-color: #e74c3c;
-            --success-color: #2ecc71;
-            --warning-color: #f1c40f;
-            --bg-color: #f8f9fa;
-            --card-bg: #ffffff;
-        }
-
-        body {
-            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--primary-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 900px;
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-
-        h1 {
-            text-align: center;
-            color: var(--primary-color);
-            margin-bottom: 30px;
-            font-weight: 600;
-        }
-
-        .config-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-            background: #f1f2f6;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group label {
-            margin-bottom: 8px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .form-group input, .form-group select {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-
-        .main-btn {
-            grid-column: 1 / -1;
-            padding: 12px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .main-btn:hover {
-            background-color: #34495e;
-        }
-
-        .main-btn:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        .status-msg {
-            text-align: center;
-            font-weight: bold;
-            margin: 15px 0;
-            color: var(--accent-color);
-            min-height: 20px;
-        }
-
-        .result-section {
-            margin-top: 30px;
-        }
-
-        .result-title {
-            font-size: 18px;
-            border-left: 4px solid var(--accent-color);
-            padding-left: 10px;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-
-        .tip-text {
-            font-size: 13px;
-            color: #718096;
-            margin-bottom: 15px;
-            line-height: 1.6;
-        }
-
-        .idiom-chain {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            align-items: center;
-            max-width: 580px;
-            margin: 0 auto;
-        }
-
-        .idiom-row {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-        }
-
-        .idiom-node {
-            display: flex;
-            align-items: center;
-            background: #edf2f7;
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: 2px solid transparent;
-            transition: all 0.2s;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .idiom-node.is-valid {
-            border-color: var(--success-color);
-            background: #e8f5e9;
-        }
-
-        .idiom-node.is-invalid {
-            border-color: var(--accent-color);
-            background: #ffebee;
-        }
-
-        .idiom-index {
-            font-size: 14px;
-            font-weight: bold;
-            color: #718096;
-            margin-right: 10px;
-            background: #e2e8f0;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-
-        .idiom-input {
-            font-size: 18px;
-            font-weight: bold;
-            border: none;
-            background: transparent;
-            width: 120px;
-            color: var(--primary-color);
-            padding: 4px;
-            border-bottom: 2px dashed #a0aec0;
-            text-align: center;
-        }
-
-        .idiom-input:focus {
-            outline: none;
-            border-bottom-color: var(--primary-color);
-        }
-
-        .node-pinyin {
-            font-size: 14px;
-            color: #718096;
-            margin-left: 15px;
-            flex-grow: 1;
-        }
-
-        .action-btn {
-            background: #3182ce;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-left: 10px;
-        }
-
-        .action-btn:hover {
-            background: #2b6cb0;
-        }
-
-        .arrow-v {
-            text-align: center;
-            color: #a0aec0;
-            font-weight: bold;
-            font-size: 20px;
-            margin: 5px 0;
-        }
-
-        .add-layer-container {
-            margin-top: 20px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-        }
-
-        .add-btn {
-            background-color: var(--success-color);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 15px;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .add-btn:hover {
-            background-color: #27ae60;
-            transform: translateY(-1px);
-        }
-
-        /* --- 弹窗样式 --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            z-index: 1000;
-        }
-
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            position: relative;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 24px;
-            cursor: pointer;
-            color: #a0aec0;
-        }
-
-        .close-btn:hover {
-            color: #4a5568;
-        }
-
-        .modal-idiom {
-            font-size: 28px;
-            margin: 0 0 5px 0;
-            color: var(--primary-color);
-        }
-
-        .modal-pinyin {
-            font-size: 16px;
-            color: #718096;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 10px;
-        }
-
-        .info-block {
-            margin-bottom: 15px;
-        }
-
-        .info-label {
-            font-weight: bold;
-            color: var(--accent-color);
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-
-        .info-text {
-            font-size: 15px;
-            line-height: 1.6;
-            color: #4a5568;
-        }
+        :root { --p-color: #2c3e50; --a-color: #e74c3c; --s-color: #2ecc71; }
+        body { font-family: sans-serif; background: #f8f9fa; color: var(--p-color); padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 600px; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .config-section { display: flex; flex-wrap: wrap; gap: 10px; background: #f1f2f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .form-group { flex: 1; min-width: 120px; display: flex; flex-direction: column; font-size: 13px; font-weight: bold; }
+        .form-group input, .form-group select, button { padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        button { width: 100%; background: var(--p-color); color: #fff; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .status-msg { text-align: center; font-weight: bold; color: var(--a-color); margin: 10px 0; font-size: 14px; }
+        .idiom-node { display: flex; align-items: center; background: #edf2f7; padding: 8px 12px; border-radius: 8px; border: 2px solid transparent; margin: 8px 0; }
+        .is-valid { border-color: var(--s-color); background: #e8f5e9; }
+        .is-pending { border-color: #f1c40f; background: #fef9e7; }
+        .idiom-index { font-size: 12px; font-weight: bold; color: #fff; background: #718096; padding: 2px 6px; border-radius: 4px; margin-right: 10px; }
+        .idiom-input { font-size: 16px; font-weight: bold; border: none; background: transparent; width: 100px; border-bottom: 2px dashed #a0aec0; text-align: center; }
+        .idiom-input:focus { outline: none; border-bottom-color: var(--p-color); }
+        .node-pinyin { font-size: 13px; color: #718096; margin-left: 10px; flex-grow: 1; }
+        .action-btn { background: #3182ce; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+        .arrow { text-align: center; color: #a0aec0; font-size: 14px; margin: 2px 0; }
+        /* 弹窗样式 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative; }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 20px; cursor: pointer; color: #aaa; }
+        .info-label { font-weight: bold; color: var(--a-color); margin-top: 10px; font-size: 13px; }
     </style>
     <script src="https://unpkg.com/pinyin-pro"></script>
 </head>
 <body>
 
 <div class="container">
-    <h1>中华成语接龙（校验与无限无限扩充版）</h1>
-    
+    <h3 style="text-align: center; margin-top:0;">中华成语接龙沙盒</h3>
     <div class="config-section">
-        <div class="form-group">
-            <label for="startIdiom">起始成语：</label>
-            <input type="text" id="startIdiom" placeholder="例如：胸有成竹" value="胸有成竹">
-        </div>
-        <div class="form-group">
-            <label for="ruleSelect">接龙规则：</label>
+        <div class="form-group">起点：<input type="text" id="startIdiom" value="胸有成竹"></div>
+        <div class="form-group">规则：
             <select id="ruleSelect">
-                <option value="1">规则一：字完全相同（首尾字字形相同）</option>
-                <option value="2">规则二：读音相同（声母+韵母+声调完全相同）</option>
-                <option value="3">规则三：同音异调（声母+韵母相同，声调可不同）</option>
+                <option value="1">同字</option><option value="2">同音同调</option><option value="3">同音异调</option>
             </select>
         </div>
-        <div class="form-group">
-            <label for="maxLen">初始接龙长度：</label>
-            <input type="number" id="maxLen" value="4" min="1" max="50">
-        </div>
-        <button id="startBtn" class="main-btn" disabled>正在加载成语词库，请稍候...</button>
+        <div class="form-group">初始长度：<input type="number" id="maxLen" value="3" min="1"></div>
+        <button id="startBtn" onclick="initGame()" disabled>正在加载词库...</button>
     </div>
-
     <div class="status-msg" id="statusMsg"></div>
-
-    <div class="result-section">
-        <div class="result-title">接龙战场：</div>
-        <div class="tip-text">
-            🎮 <b>玩法规则更新：</b><br>
-            1. <b>规则校验</b>：你修改成语时，系统会实时验证它与<b>上一层成语的首尾接龙规则</b>是否吻合！<br>
-            2. <b>无限追加</b>：点击链条最下方的 <b>“＋ 追加下一层接龙”</b> 按钮，可以在最后一层后面无限延伸新的成语。
-        </div>
-        
-        <div class="idiom-chain" id="resultChain">
-            </div>
-
-        <div class="add-layer-container" id="addContainer" style="display: none;">
-            <button class="add-btn" id="addLayerBtn">＋ 追加下一层接龙</button>
-        </div>
-    </div>
+    <div id="resultChain"></div>
 </div>
 
-<div class="modal-overlay" id="idiomModal">
+<div class="modal-overlay" id="idiomModal" onclick="if(event.target==this)toggleModal(false)">
     <div class="modal-content">
-        <span class="close-btn" id="closeModal">&times;</span>
-        <h2 class="modal-idiom" id="modalWord">成语</h2>
-        <div class="modal-pinyin" id="modalPinyin">pīn yīn</div>
-        
-        <div class="info-block">
-            <div class="info-label">【成语释义】</div>
-            <div class="info-text" id="modalExplanation">暂无释义</div>
-        </div>
-        
-        <div class="info-block">
-            <div class="info-label">--【词源出处】--</div>
-            <div class="info-text" id="modalDerivation">暂无出处</div>
-        </div>
+        <span class="close-btn" onclick="toggleModal(false)">&times;</span>
+        <h2 id="mWord" style="margin:0;color:var(--p-color)"></h2>
+        <div id="mPinyin" style="color:#718096; border-bottom:1px solid #e2e8f0; padding-bottom:5px;"></div>
+        <div class="info-label">【释义】</div><div id="mExp" style="font-size:14px; line-height:1.5;"></div>
+        <div class="info-label">【出处】</div><div id="mDer" style="font-size:14px; line-height:1.5;"></div>
     </div>
 </div>
 
 <script>
-    const IDIOM_DATA_URL = 'https://cdn.jsdelivr.net/gh/pwxcoo/chinese-xinhua@master/data/idiom.json';
-    
-    let idiomList = [];
-    let idiomMap = {}; 
-    let currentChain = []; // 全局维护当前的成语链条
+    let idiomList = [], idiomMap = {}, currentChain = [];
 
-    // 初始化：下载成语库
-    async function initIdiomDatabase() {
-        const btn = document.getElementById('startBtn');
-        const status = document.getElementById('statusMsg');
+    // 初始化：加载词库
+    (async function() {
         try {
-            const response = await fetch(IDIOM_DATA_URL);
-            const data = await response.json();
-            
-            idiomList = data.filter(item => item.word && item.word.length === 4);
-            idiomList.forEach(item => { idiomMap[item.word] = item; });
-            
-            status.innerText = `成功加载 ${idiomList.length} 条四字成语！`;
-            btn.innerText = "生成初始接龙";
-            btn.disabled = false;
-        } catch (error) {
-            console.error(error);
-            status.innerText = "成语库加载失败，请刷新页面重试。";
+            const res = await fetch('https://cdn.jsdelivr.net/gh/pwxcoo/chinese-xinhua@master/data/idiom.json');
+            idiomList = (await res.json()).filter(i => i.word?.length === 4);
+            idiomList.forEach(i => idiomMap[i.word] = i);
+            document.getElementById('statusMsg').innerText = `词库加载成功，共 ${idiomList.length} 条。`;
+            document.getElementById('startBtn').innerText = "开始游戏";
+            document.getElementById('startBtn').disabled = false;
+        } catch { document.getElementById('statusMsg').innerText = "词库加载失败，请刷新。"; }
+    })();
+
+    const getPy = char => ({ withT: pinyinPro.pinyin(char, { toneType: 'symbol' }), noT: pinyinPro.pinyin(char, { toneType: 'none' }) });
+
+    // 核心规则校验
+    function checkRule(prev, curr, rule) {
+        if (!prev) return true;
+        const p = getPy(prev.charAt(3)), c = getPy(curr.charAt(0));
+        return rule === '1' ? prev.charAt(3) === curr.charAt(0) : (rule === '2' ? p.withT === c.withT : p.noT === c.noT);
+    }
+
+    // 生成子接龙数组
+    function genChain(start, rule, len, used) {
+        const sub = [start], uSet = new Set(used).add(start);
+        while (sub.length < len) {
+            const last = sub[sub.length - 1];
+            const next = idiomList.find(i => !uSet.has(i.word) && checkRule(last, i.word, rule));
+            if (!next) break;
+            sub.push(next.word); uSet.add(next.word);
+        }
+        return sub;
+    }
+
+    // 核心：处理所有的输入变化（统一支持中间层微调与最底层追加）
+    function handleInputChange(idx, inputEl) {
+        const word = inputEl.value.trim(), rule = document.getElementById('ruleSelect').value, status = document.getElementById('statusMsg');
+        if (!word) return;
+
+        if (word.length !== 4 || !idiomMap[word] || (idx > 0 && !checkRule(currentChain[idx - 1], word, rule)) || currentChain.slice(0, idx).includes(word)) {
+            status.innerText = `输入错误或不符规则！`;
+            return render();
+        }
+
+        const prevUsed = currentChain.slice(0, idx);
+        if (idx === currentChain.length) { // 最底层追加
+            currentChain.push(word);
+            status.innerText = "追加成功！";
+        } else { // 中间层修改，级联刷新
+            currentChain = prevUsed.concat(genChain(word, rule, currentChain.length - idx, prevUsed));
+            status.innerText = "修改成功，后续链条已重算！";
+        }
+        render();
+        if (idx === currentChain.length - 1) setTimeout(() => document.getElementById('input-append')?.focus(), 50); // 自动聚焦
+    }
+
+    function toggleModal(show, word = '') {
+        const m = document.getElementById('idiomModal');
+        m.classList.toggle('active', show);
+        if (show && idiomMap[word]) {
+            document.getElementById('mWord').innerText = word;
+            document.getElementById('mPinyin').innerText = pinyinPro.pinyin(word);
+            document.getElementById('mExp').innerText = idiomMap[word].explanation || "暂无";
+            document.getElementById('mDer').innerText = idiomMap[word].derivation || "暂无";
         }
     }
 
-    // 利用 pinyin-pro 提取拼音核心特征
-    function getPinyinInfo(char) {
-        const withTone = pinyinPro.pinyin(char, { toneType: 'symbol' });
-        const withoutTone = pinyinPro.pinyin(char, { toneType: 'none' });
-        return { withTone, withoutTone };
-    }
-
-    // 单个规则契合度验证核心算法
-    function checkMatchRule(prevWord, currentWord, rule) {
-        if (!prevWord || !currentWord) return true; // 如果是第一层，默认合法
-        
-        const lastChar = prevWord.charAt(3); // 上一个词的最后一个字
-        const firstChar = currentWord.charAt(0); // 当前词的第一个字
-
-        if (rule === '1') {
-            return firstChar === lastChar;
-        }
-        if (rule === '2') {
-            return getPinyinInfo(firstChar).withTone === getPinyinInfo(lastChar).withTone;
-        }
-        if (rule === '3') {
-            return getPinyinInfo(firstChar).withoutTone === getPinyinInfo(lastChar).withoutTone;
-        }
-        return false;
-    }
-
-    // 核心算法：基于给定的已有集合生成接龙
-    function generateSubChain(startWord, rule, remainLen, usedSet) {
-        const used = new Set(usedSet);
-        const subChain = [startWord];
-        let currentWord = startWord;
-
-        for (let i = 1; i < remainLen; i++) {
-            const lastChar = currentWord.charAt(3);
-            const lastCharPinyin = getPinyinInfo(lastChar);
-
-            const nextIdiom = idiomList.find(item => {
-                const word = item.word;
-                if (used.has(word)) return false;
-                const firstChar = word.charAt(0);
-
-                if (rule === '1') return firstChar === lastChar;
-                if (rule === '2') return getPinyinInfo(firstChar).withTone === lastCharPinyin.withTone;
-                if (rule === '3') return getPinyinInfo(firstChar).withoutTone === lastCharPinyin.withoutTone;
-                return false;
-            });
-
-            if (nextIdiom) {
-                subChain.push(nextIdiom.word);
-                used.add(nextIdiom.word);
-                currentWord = nextIdiom.word;
-            } else {
-                break;
-            }
-        }
-        return subChain;
-    }
-
-    // 用户手动修改某一层后触发的逻辑
-    function handleNodeChange(index, inputElement) {
-        const newWord = inputElement.value.trim();
-        const rule = document.getElementById('ruleSelect').value;
-        const status = document.getElementById('statusMsg');
-
-        // 1. 基础验证：是否是4字成语
-        if (newWord.length !== 4) {
-            status.innerText = `错误：第 ${index + 1} 层必须输入4个字！`;
-            renderChain(currentChain);
-            return;
-        }
-        if (!idiomMap[newWord]) {
-            status.innerText = `错误：“${newWord}”未在成语词库中找到！`;
-            renderChain(currentChain);
-            return;
-        }
-
-        // 2. 新增：接龙规则匹配验证（跟上一层比）
-        if (index > 0) {
-            const prevWord = currentChain[index - 1];
-            const isMatch = checkMatchRule(prevWord, newWord, rule);
-            if (!isMatch) {
-                status.innerText = `规则不符！“${newWord}”的首字与上一层“${prevWord}”的尾字不满足当前接龙规则！`;
-                renderChain(currentChain);
-                return;
-            }
-        }
-
-        // 3. 校验通过，锁定前半段，级联重新计算后半段
-        const prevUsed = new Set();
-        for (let i = 0; i < index; i++) {
-            prevUsed.add(currentChain[i]);
-        }
-        prevUsed.add(newWord);
-
-        const remainLen = currentChain.length - index; // 保持原有链条总长度不变
-        const subChain = generateSubChain(newWord, rule, remainLen, prevUsed);
-
-        const frontPart = currentChain.slice(0, index);
-        currentChain = frontPart.concat(subChain);
-
-        status.innerText = `第 ${index + 1} 层成语修改成功，符合规则，后续链条已联动刷新！`;
-        renderChain(currentChain);
-    }
-
-    // 【新功能】追加下一层接龙
-    function handleAddLayer() {
-        const rule = document.getElementById('ruleSelect').value;
-        const status = document.getElementById('statusMsg');
-
-        if(currentChain.length === 0) return;
-
-        const lastWord = currentChain[currentChain.length - 1];
-        const lastChar = lastWord.charAt(3);
-        const lastCharPinyin = getPinyinInfo(lastChar);
-
-        // 整理已经使用过的成语，防止重复
-        const used = new Set(currentChain);
-
-        // 寻找一个符合规则的成语
-        const nextIdiom = idiomList.find(item => {
-            const word = item.word;
-            if (used.has(word)) return false;
-            const firstChar = word.charAt(0);
-
-            if (rule === '1') return firstChar === lastChar;
-            if (rule === '2') return getPinyinInfo(firstChar).withTone === lastCharPinyin.withTone;
-            if (rule === '3') return getPinyinInfo(firstChar).withoutTone === lastCharPinyin.withoutTone;
-            return false;
+    // 渲染主逻辑
+    function render() {
+        let html = '';
+        currentChain.forEach((word, i) => {
+            html += `
+                <div class="idiom-node is-valid">
+                    <span class="idiom-index">${i + 1}</span>
+                    <input class="idiom-input" value="${word}" onchange="handleInputChange(${i}, this)" onkeydown="if(event.key==='Enter')this.blur()" maxlength="4">
+                    <span class="node-pinyin">${pinyinPro.pinyin(word)}</span>
+                    <button class="action-btn" onclick="toggleModal(true, '${word}')">详情</button>
+                </div><div class="arrow">▼</div>`;
         });
-
-        if (nextIdiom) {
-            currentChain.push(nextIdiom.word);
-            status.innerText = `成功追加第 ${currentChain.length} 层成语：${nextIdiom.word}`;
-            renderChain(currentChain);
-        } else {
-            status.innerText = `抱歉，词库中已经找不到能对接“${lastWord}”的成语了。`;
-        }
+        // 动态拼装最底层的黄色待输入挑战框
+        html += `
+            <div class="idiom-node is-pending">
+                <span class="idiom-index" style="background:#f1c40f">${currentChain.length + 1}</span>
+                <input class="idiom-input" id="input-append" placeholder="输入接龙..." onchange="handleInputChange(${currentChain.length}, this)" onkeydown="if(event.key==='Enter')this.blur()" maxlength="4">
+                <span class="node-pinyin" style="color:#d4ac0d; font-style:italic;">✍️ 等待输入...</span>
+            </div>`;
+        document.getElementById('resultChain').innerHTML = html;
     }
 
-    // 显示成语详情弹窗
-    function showIdiomDetails(word) {
-        const modal = document.getElementById('idiomModal');
-        const info = idiomMap[word] || {};
-        const py = pinyinPro.pinyin(word, { toneType: 'symbol' });
-
-        document.getElementById('modalWord').innerText = word;
-        document.getElementById('modalPinyin').innerText = py;
-        document.getElementById('modalExplanation').innerText = info.explanation || "暂无详细释义";
-        document.getElementById('modalDerivation').innerText = info.derivation || "暂无词源出处记载";
-
-        modal.classList.add('active');
+    function initGame() {
+        const start = document.getElementById('startIdiom').value.trim(), len = parseInt(document.getElementById('maxLen').value) || 3, rule = document.getElementById('ruleSelect').value;
+        if (!idiomMap[start]) return document.getElementById('statusMsg').innerText = "起点词不在词库中！";
+        currentChain = genChain(start, rule, len, []);
+        render();
     }
-
-    function closeModal() {
-        document.getElementById('idiomModal').classList.remove('active');
-    }
-
-    // 渲染链条至界面
-    function renderChain(chain) {
-        const container = document.getElementById('resultChain');
-        container.innerHTML = '';
-
-        if(chain.length === 0) {
-            document.getElementById('addContainer').style.display = 'none';
-            return;
-        }
-
-        chain.forEach((word, index) => {
-            const row = document.createElement('div');
-            row.className = 'idiom-row';
-            const py = pinyinPro.pinyin(word, { toneType: 'symbol' });
-            
-            row.innerHTML = `
-                <div class="idiom-node is-valid" id="node-${index}">
-                    <span class="idiom-index">${index + 1}</span>
-                    <input type="text" class="idiom-input" id="input-${index}" value="${word}" maxlength="4">
-                    <span class="node-pinyin" id="pinyin-${index}">${py}</span>
-                    <button class="action-btn" id="btn-${index}">查看详情</button>
-                </div>
-            `;
-            container.appendChild(row);
-
-            const inputEl = row.querySelector(`#input-${index}`);
-            const btnEl = row.querySelector(`#btn-${index}`);
-
-            btnEl.onclick = () => showIdiomDetails(word);
-
-            inputEl.addEventListener('blur', () => {
-                if (inputEl.value.trim() !== currentChain[index]) {
-                    handleNodeChange(index, inputEl);
-                }
-            });
-            inputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') inputEl.blur();
-            });
-
-            if (index < chain.length - 1) {
-                const arrow = document.createElement('div');
-                arrow.className = 'arrow-v';
-                arrow.innerText = '▼';
-                container.appendChild(arrow);
-            }
-        });
-
-        // 只要链条不为空，就显示“追加下一层”的按钮
-        document.getElementById('addContainer').style.display = 'flex';
-    }
-
-    // 初始生成按钮
-    document.getElementById('startBtn').addEventListener('click', () => {
-        const startWord = document.getElementById('startIdiom').value.trim();
-        const rule = document.getElementById('ruleSelect').value;
-        const maxLen = parseInt(document.getElementById('maxLen').value) || 4;
-        const status = document.getElementById('statusMsg');
-
-        if (startWord.length !== 4) {
-            status.innerText = "请输入一个标准的四字成语！";
-            return;
-        }
-        if (!idiomMap[startWord]) {
-            status.innerText = "该起始词不在词库中，无法生成接龙。";
-            return;
-        }
-
-        status.innerText = "接龙战场初始化成功！";
-        currentChain = generateSubChain(startWord, rule, maxLen, new Set());
-        renderChain(currentChain);
-    });
-
-    // 绑定“追加下一层”按钮的点击事件
-    document.getElementById('addLayerBtn').addEventListener('click', handleAddLayer);
-
-    // 弹窗关闭事件
-    document.getElementById('closeModal').addEventListener('click', closeModal);
-    document.getElementById('idiomModal').addEventListener('click', (e) => {
-        if(e.target.id === 'idiomModal') closeModal();
-    });
-
-    window.onload = initIdiomDatabase;
 </script>
-
 </body>
 </html>
