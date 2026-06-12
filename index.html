@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>成语接龙自适应沙盒</title>
+    <title>最长路径优化·成语接龙沙盒</title>
     <style>
         :root { --p-color: #2c3e50; --a-color: #e74c3c; --s-color: #2ecc71; }
         body { font-family: sans-serif; background: #f8f9fa; color: var(--p-color); padding: 20px; display: flex; justify-content: center; }
@@ -33,7 +33,7 @@
 <body>
 
 <div class="container">
-    <h3 style="text-align: center; margin-top:0;">中华成语接龙沙盒</h3>
+    <h3 style="text-align: center; margin-top:0;">中华成语接龙沙盒（最长路径智能版）</h3>
     <div class="config-section">
         <div class="form-group">起点：<input type="text" id="startIdiom" value="胸有成竹"></div>
         <div class="form-group">规则：
@@ -41,7 +41,7 @@
                 <option value="1">同字</option><option value="2">同音同调</option><option value="3">同音异调</option>
             </select>
         </div>
-        <div class="form-group">期望链条总长：<input type="number" id="maxLen" value="5" min="1"></div>
+        <div class="form-group">期望链条总长：<input type="number" id="maxLen" value="6" min="1"></div>
         <button id="startBtn" onclick="initGame()" disabled>正在加载词库...</button>
     </div>
     <div class="status-msg" id="statusMsg"></div>
@@ -82,25 +82,52 @@
         return rule === '1' ? prev.charAt(3) === curr.charAt(0) : (rule === '2' ? p.withT === c.withT : p.noT === c.noT);
     }
 
-    // 核心接龙生成器
-    function genChain(start, rule, targetLen, used) {
-        const sub = [start], uSet = new Set(used).add(start);
-        while (sub.length < targetLen) {
-            const last = sub[sub.length - 1];
-            const next = idiomList.find(i => !uSet.has(i.word) && checkRule(last, i.word, rule));
-            if (!next) break;
-            sub.push(next.word); uSet.add(next.word);
+    // 【核心升级】智能寻优算法：寻找尽可能长的接龙路径
+    function findLongestChain(startWord, rule, targetLen, globalUsedSet) {
+        let bestPath = [];
+        const currentPath = [startWord];
+        const visitedInSession = new Set(globalUsedSet).add(startWord);
+
+        function dfs(currentWord) {
+            // 性能剪枝：如果当前路径长度已经达到了用户期望的长度，就是完美解，立刻终止搜索
+            if (currentPath.length >= targetLen) {
+                bestPath = [...currentPath];
+                return true; 
+            }
+
+            // 如果当前路径比已知最长路径还要长，暂时记录为最优解
+            if (currentPath.length > bestPath.length) {
+                bestPath = [...currentPath];
+            }
+
+            // 过滤出所有符合接龙条件且未被使用的候选词
+            const candidates = idiomList.filter(i => !visitedInSession.has(i.word) && checkRule(currentWord, i.word, rule));
+
+            for (const cand of candidates) {
+                visitedInSession.add(cand.word);
+                currentPath.push(cand.word);
+
+                const foundPerfect = dfs(cand.word); // 递归向下探索
+                if (foundPerfect) return true;       // 如果找到了完美解，一路向上中断返回
+
+                // 回溯状态
+                currentPath.pop();
+                visitedInSession.delete(cand.word);
+            }
+            return false;
         }
-        return sub;
+
+        dfs(startWord);
+        return bestPath;
     }
 
     // 处理输入修改与级联长度自适应
     function handleInputChange(idx, inputEl) {
         const word = inputEl.value.trim(), rule = document.getElementById('ruleSelect').value, status = document.getElementById('statusMsg');
-        const targetTotalLen = parseInt(document.getElementById('maxLen').value) || 5; // 实时获取指定的最新期望长度
+        const targetTotalLen = parseInt(document.getElementById('maxLen').value) || 5; 
         if (!word) return;
 
-        // 基础格式与规则防错校验
+        // 基础验证
         if (word.length !== 4 || !idiomMap[word] || (idx > 0 && !checkRule(currentChain[idx - 1], word, rule)) || currentChain.slice(0, idx).includes(word)) {
             status.innerText = `输入错误或不符规则！`;
             return render();
@@ -109,16 +136,23 @@
         const prevUsed = currentChain.slice(0, idx);
         
         if (idx === currentChain.length) { 
-            // 1. 最底层手动追加一行
+            // 1. 最底层手动追加
             currentChain.push(word);
             status.innerText = "追加成功！";
             render();
             setTimeout(() => document.getElementById('input-append')?.focus(), 50);
         } else { 
-            // 2. 中间层修改：根据最新指定的“期望总长”，动态计算后面还需要补全多少个成语
+            // 2. 中间层修改：调用全新的寻优回溯算法，保证后续序列尽可能长
             const remainLen = Math.max(1, targetTotalLen - idx); 
-            currentChain = prevUsed.concat(genChain(word, rule, remainLen, prevUsed));
-            status.innerText = `微调成功！后续接龙已自动匹配并重算至指定的 ${currentChain.length} 层。`;
+            const subChain = findLongestChain(word, rule, remainLen, prevUsed);
+            
+            currentChain = prevUsed.concat(subChain);
+            
+            if (currentChain.length < targetTotalLen) {
+                status.innerText = `微调成功！算法已尽最大努力回溯寻优，受词库限制，当前最长只能接到 ${currentChain.length} 层。`;
+            } else {
+                status.innerText = `微调成功！已成功重算并补齐至指定的 ${currentChain.length} 层。`;
+            }
             render();
         }
     }
@@ -157,7 +191,15 @@
     function initGame() {
         const start = document.getElementById('startIdiom').value.trim(), len = parseInt(document.getElementById('maxLen').value) || 5, rule = document.getElementById('ruleSelect').value;
         if (!idiomMap[start]) return document.getElementById('statusMsg').innerText = "起点词不在词库中！";
-        currentChain = genChain(start, rule, len, []);
+        
+        // 初始生成同样调用最长路径寻优算法
+        currentChain = findLongestChain(start, rule, len, []);
+        
+        if (currentChain.length < len) {
+            document.getElementById('statusMsg').innerText = `已为您生成最长接龙链（当前条件下最多只能接 ${currentChain.length} 层）。`;
+        } else {
+            document.getElementById('statusMsg').innerText = "接龙链完美初始化成功！";
+        }
         render();
     }
 </script>
