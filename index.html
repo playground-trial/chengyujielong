@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>趣味成语接龙生成器</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .config-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+            background: #f1f2f6;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            grid-column: 1 / -1;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status-msg {
+            text-align: center;
+            font-weight: bold;
+            margin: 15px 0;
+            color: var(--accent-color);
+            min-height: 20px;
+        }
+
+        .result-section {
+            margin-top: 30px;
+        }
+
+        .result-title {
+            font-size: 18px;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .tip-text {
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+
+        .idiom-chain {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .idiom-card {
+            background: #edf2f7;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .idiom-card:hover {
+            background: #e2e8f0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+        }
+
+        .idiom-pinyin {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 4px;
+        }
+
+        .arrow {
+            color: #a0aec0;
+            font-weight: bold;
+        }
+
+        /* --- 弹窗样式 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+
+        .close-btn:hover {
+            color: #4a5568;
+        }
+
+        .modal-idiom {
+            font-size: 28px;
+            margin: 0 0 5px 0;
+            color: var(--primary-color);
+        }
+
+        .modal-pinyin {
+            font-size: 16px;
+            color: #718096;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .info-block {
+            margin-bottom: 15px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .info-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #4a5568;
+        }
+    </style>
+    <!-- 引入开源汉字拼音转换库 pinyin-pro -->
+    <script src="https://unpkg.com/pinyin-pro"></script>
+</head>
+<body>
+
+<div class="container">
+    <h1>中华成语接龙生成器</h1>
+    
+    <div class="config-section">
+        <div class="form-group">
+            <label for="startIdiom">起始成语：</label>
+            <input type="text" id="startIdiom" placeholder="例如：胸有成竹" value="胸有成竹">
+        </div>
+        <div class="form-group">
+            <label for="ruleSelect">接龙规则：</label>
+            <select id="ruleSelect">
+                <option value="1">规则一：字完全相同（首尾字字形相同）</option>
+                <option value="2">规则二：读音相同（声母+韵母+声调完全相同）</option>
+                <option value="3">规则三：同音异调（声母+韵母相同，声调可不同）</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="maxLen">最大接龙长度：</label>
+            <input type="number" id="maxLen" value="10" min="2" max="50">
+        </div>
+        <button id="startBtn" disabled>正在加载成语词库，请稍候...</button>
+    </div>
+
+    <div class="status-msg" id="statusMsg"></div>
+
+    <div class="result-section">
+        <div class="result-title">接龙结果：</div>
+        <div class="tip-text">💡 提示：点击下方的成语卡片，可以查看该成语的详细释义和词源。</div>
+        <div class="idiom-chain" id="resultChain">
+            <!-- 结果动态渲染至此 -->
+        </div>
+    </div>
+</div>
+
+<!-- 弹窗组件 -->
+<div class="modal-overlay" id="idiomModal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeModal">&times;</span>
+        <h2 class="modal-idiom" id="modalWord">成语</h2>
+        <div class="modal-pinyin" id="modalPinyin">pīn yīn</div>
+        
+        <div class="info-block">
+            <div class="info-label">【成语释义】</div>
+            <div class="info-text" id="modalExplanation">暂无释义</div>
+        </div>
+        
+        <div class="info-block">
+            <div class="info-label">--【词源出处】--</div>
+            <div class="info-text" id="modalDerivation">暂无出处</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 固定的开源轻量级成语库（包含详细释义和词源）
+    const IDIOM_DATA_URL = 'https://cdn.jsdelivr.net/gh/pwxcoo/chinese-xinhua@master/data/idiom.json';
+    
+    let idiomList = [];
+    let idiomMap = {}; // 用于快速通过成语名字检索其完整信息的字典
+
+    // 初始化：下载成语库
+    async function initIdiomDatabase() {
+        const btn = document.getElementById('startBtn');
+        const status = document.getElementById('statusMsg');
+        try {
+            const response = await fetch(IDIOM_DATA_URL);
+            const data = await response.json();
+            
+            // 过滤出标准的四字成语
+            idiomList = data.filter(item => item.word && item.word.length === 4);
+            
+            // 构建哈希映射，方便点击成语时一秒查到详情
+            idiomList.forEach(item => {
+                idiomMap[item.word] = item;
+            });
+            
+            status.innerText = `成功加载 ${idiomList.length} 条四字成语！`;
+            btn.innerText = "开始接龙";
+            btn.disabled = false;
+        } catch (error) {
+            console.error(error);
+            status.innerText = "成语库加载失败，请刷新页面重试。";
+        }
+    }
+
+    // 利用 pinyin-pro 提取拼音核心特征
+    function getPinyinInfo(char) {
+        const withTone = pinyinPro.pinyin(char, { toneType: 'symbol' });
+        const withoutTone = pinyinPro.pinyin(char, { toneType: 'none' });
+        return { withTone, withoutTone };
+    }
+
+    // 核心算法：生成成语接龙数组
+    function generateChain(startWord, rule, maxLen) {
+        const used = new Set([startWord]);
+        const chain = [startWord];
+        let currentWord = startWord;
+
+        for (let i = 1; i < maxLen; i++) {
+            const lastChar = currentWord.charAt(3);
+            const lastCharPinyin = getPinyinInfo(lastChar);
+
+            const nextIdiom = idiomList.find(item => {
+                const word = item.word;
+                if (used.has(word)) return false;
+
+                const firstChar = word.charAt(0);
+
+                if (rule === '1') return firstChar === lastChar;
+                
+                if (rule === '2') {
+                    const firstCharPinyin = getPinyinInfo(firstChar);
+                    return firstCharPinyin.withTone === lastCharPinyin.withTone;
+                }
+
+                if (rule === '3') {
+                    const firstCharPinyin = getPinyinInfo(firstChar);
+                    return firstCharPinyin.withoutTone === lastCharPinyin.withoutTone;
+                }
+
+                return false;
+            });
+
+            if (nextIdiom) {
+                chain.push(nextIdiom.word);
+                used.add(nextIdiom.word);
+                currentWord = nextIdiom.word;
+            } else {
+                break;
+            }
+        }
+        return chain;
+    }
+
+    // 显示成语详情弹窗
+    function showIdiomDetails(word) {
+        const modal = document.getElementById('idiomModal');
+        const info = idiomMap[word] || {}; // 从字典中获取该词详情
+
+        // 拼接拼音
+        const py = pinyinPro.pinyin(word, { toneType: 'symbol' });
+
+        document.getElementById('modalWord').innerText = word;
+        document.getElementById('modalPinyin').innerText = py;
+        document.getElementById('modalExplanation').innerText = info.explanation || "暂无详细释义";
+        document.getElementById('modalDerivation').innerText = info.derivation || "暂无词源出处记载";
+
+        modal.classList.add('active');
+    }
+
+    // 关闭弹窗
+    function closeModal() {
+        document.getElementById('idiomModal').classList.remove('active');
+    }
+
+    // 渲染结果到页面
+    function renderChain(chain) {
+        const container = document.getElementById('resultChain');
+        container.innerHTML = '';
+
+        if(chain.length === 0) return;
+
+        chain.forEach((word, index) => {
+            const py = pinyinPro.pinyin(word, { toneType: 'symbol' });
+
+            // 创建成语卡片
+            const card = document.createElement('div');
+            card.className = 'idiom-card';
+            card.innerHTML = `
+                <strong>${word}</strong>
+                <span class="idiom-pinyin">${py}</span>
+            `;
+            
+            // 【新增功能】给卡片绑定点击事件
+            card.addEventListener('click', () => showIdiomDetails(word));
+            
+            container.appendChild(card);
+
+            if (index < chain.length - 1) {
+                const arrow = document.createElement('span');
+                arrow.className = 'arrow';
+                arrow.innerText = '➔';
+                container.appendChild(arrow);
+            }
+        });
+    }
+
+    // 按钮点击事件
+    document.getElementById('startBtn').addEventListener('click', () => {
+        const startWord = document.getElementById('startIdiom').value.trim();
+        const rule = document.getElementById('ruleSelect').value;
+        const maxLen = parseInt(document.getElementById('maxLen').value) || 10;
+        const status = document.getElementById('statusMsg');
+
+        if (startWord.length !== 4) {
+            status.innerText = "请输入一个标准的四字成语！";
+            return;
+        }
+
+        const exists = idiomList.some(item => item.word === startWord);
+        if (!exists) {
+            status.innerText = "词库中未收入该成语，但仍将尝试以此字开始接龙...";
+            // 如果输入的初始词不在库里，手动把它加进临时Map防止报错
+            if(!idiomMap[startWord]) {
+                idiomMap[startWord] = { explanation: "自定义输入的起始词，词库中未包含其释义。", derivation: "未知" };
+            }
+        } else {
+            status.innerText = "接龙生成成功！";
+        }
+
+        const chain = generateChain(startWord, rule, maxLen);
+        if(chain.length <= 1) {
+            status.innerText = "抱歉，未能找到可以接龙的成语。建议更换起始词或规则。";
+        }
+
+        renderChain(chain);
+    });
+
+    // 弹窗关闭事件绑定
+    document.getElementById('closeModal').addEventListener('click', closeModal);
+    // 点击弹窗背景也可以关闭
+    document.getElementById('idiomModal').addEventListener('click', (e) => {
+        if(e.target.id === 'idiomModal') closeModal();
+    });
+
+    window.onload = initIdiomDatabase;
+</script>
+
+</body>
+</html>
