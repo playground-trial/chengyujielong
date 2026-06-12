@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>动态可编辑成语接龙</title>
+    <title>联动级联成语接龙沙盒</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -113,15 +113,15 @@
             font-size: 13px;
             color: #718096;
             margin-bottom: 15px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
         .idiom-chain {
             display: flex;
-            flex-direction: column; /* 改为垂直链条更适合输入框和校验信息的展示 */
+            flex-direction: column;
             gap: 15px;
             align-items: flex-start;
-            max-width: 500px;
+            max-width: 550px;
             margin: 0 auto;
         }
 
@@ -143,7 +143,6 @@
             box-sizing: border-box;
         }
 
-        /* 校验状态样式 */
         .idiom-node.is-valid {
             border-color: var(--success-color);
             background: #e8f5e9;
@@ -179,7 +178,7 @@
         }
 
         .action-btn {
-            background: #718096;
+            background: #3182ce;
             color: white;
             border: none;
             padding: 6px 12px;
@@ -191,14 +190,7 @@
         }
 
         .action-btn:hover {
-            background: #4a5568;
-        }
-
-        .action-btn.view-btn {
-            background-color: #3182ce;
-        }
-        .action-btn.view-btn:hover {
-            background-color: #2b6cb0;
+            background: #2b6cb0;
         }
 
         .arrow-v {
@@ -296,7 +288,7 @@
 <body>
 
 <div class="container">
-    <h1>中华成语接龙沙盒</h1>
+    <h1>中华成语接龙沙盒（智能联动版）</h1>
     
     <div class="config-section">
         <div class="form-group">
@@ -323,10 +315,8 @@
     <div class="result-section">
         <div class="result-title">接龙运行链：</div>
         <div class="tip-text">
-            💡 <b>操作指南：</b><br>
-            1. 你可以<b>直接修改</b>下方任何一个框里的文字。<br>
-            2. 修改后按下<b>回车(Enter)</b>或<b>点击别处</b>，系统将自动校验其是否为真实成语。<br>
-            3. 若校验通过（变为绿色框），你可以点击右侧的<b>“查看详情”</b>阅读释义和词源。
+            🔗 <b>多米诺联动模式已开启：</b><br>
+            当你修改其中某一个成语后（按回车或点击空白处），系统不仅会校验该词，还会<b>自动以此词为新起点，实时重新计算并刷新它后面所有的接龙成语</b>！
         </div>
         
         <div class="idiom-chain" id="resultChain">
@@ -357,6 +347,7 @@
     
     let idiomList = [];
     let idiomMap = {}; 
+    let currentChain = []; // 全局维护当前的成语链条数组
 
     // 初始化：下载成语库
     async function initIdiomDatabase() {
@@ -367,10 +358,7 @@
             const data = await response.json();
             
             idiomList = data.filter(item => item.word && item.word.length === 4);
-            
-            idiomList.forEach(item => {
-                idiomMap[item.word] = item;
-            });
+            idiomList.forEach(item => { idiomMap[item.word] = item; });
             
             status.innerText = `成功加载 ${idiomList.length} 条四字成语！`;
             btn.innerText = "生成初始接龙";
@@ -388,13 +376,13 @@
         return { withTone, withoutTone };
     }
 
-    // 生成初始接龙数组
-    function generateChain(startWord, rule, maxLen) {
-        const used = new Set([startWord]);
-        const chain = [startWord];
+    // 核心算法：基于给定的已有集合生成接龙（增加 used 参数，防止与链条前半段重复）
+    function generateSubChain(startWord, rule, remainLen, usedSet) {
+        const used = new Set(usedSet);
+        const subChain = [startWord];
         let currentWord = startWord;
 
-        for (let i = 1; i < maxLen; i++) {
+        for (let i = 1; i < remainLen; i++) {
             const lastChar = currentWord.charAt(3);
             const lastCharPinyin = getPinyinInfo(lastChar);
 
@@ -410,52 +398,64 @@
             });
 
             if (nextIdiom) {
-                chain.push(nextIdiom.word);
+                subChain.push(nextIdiom.word);
                 used.add(nextIdiom.word);
                 currentWord = nextIdiom.word;
             } else {
                 break;
             }
         }
-        return chain;
+        return subChain;
     }
 
-    // 单个节点的成语校验逻辑
-    function verifyNode(inputElement, nodeElement, pinyinElement, viewBtn) {
-        const word = inputElement.value.trim();
-        
-        // 1. 基础长度校验
-        if (word.length !== 4) {
-            nodeElement.className = 'idiom-node is-invalid';
-            pinyinElement.innerText = '错误：必须是4个字';
-            viewBtn.style.display = 'none';
+    // 【级联联动核心】修改某一层后触发的逻辑
+    function handleNodeChange(index, inputElement) {
+        const newWord = inputElement.value.trim();
+        const rule = document.getElementById('ruleSelect').value;
+        const maxLen = parseInt(document.getElementById('maxLen').value) || 6;
+        const status = document.getElementById('statusMsg');
+
+        // 1. 基础基础验证
+        if (newWord.length !== 4) {
+            status.innerText = `第 ${index + 1} 层的输入格式错误：必须是4个字`;
+            renderChain(currentChain); // 恢复原状
             return;
         }
 
-        // 2. 词库内成语查验
-        const idiomInfo = idiomMap[word];
-        if (idiomInfo) {
-            // 校验成功
-            nodeElement.className = 'idiom-node is-valid';
-            const py = pinyinPro.pinyin(word, { toneType: 'symbol' });
-            pinyinElement.innerText = py;
-            viewBtn.style.withTone = 'inline-block';
-            viewBtn.style.display = 'inline-block';
-            // 绑定或更新查看事件数据
-            viewBtn.onclick = () => showIdiomDetails(word);
-        } else {
-            // 不是词库里的标准成语
-            nodeElement.className = 'idiom-node is-invalid';
-            pinyinElement.innerText = '未在词库中找到该成语';
-            viewBtn.style.display = 'none';
+        if (!idiomMap[newWord]) {
+            status.innerText = `“${newWord}”未在词库中找到，无法从该词发起联动接龙。`;
+            renderChain(currentChain); // 恢复原状
+            return;
         }
+
+        // 2. 重新构建成语链条
+        // 收集当前节点之前的所有成语，防止后半段与之重复
+        const prevUsed = new Set();
+        for (let i = 0; i < index; i++) {
+            prevUsed.add(currentChain[i]);
+        }
+        prevUsed.add(newWord);
+
+        // 计算剩余需要接龙的长度
+        const remainLen = maxLen - index;
+
+        // 生成从当前修改词开始的后续子链条
+        const subChain = generateSubChain(newWord, rule, remainLen, prevUsed);
+
+        // 将前半段和新生成的后半段剪切拼接
+        const frontPart = currentChain.slice(0, index);
+        currentChain = frontPart.concat(subChain);
+
+        status.innerText = `第 ${index + 1} 层成语已修改，后续接龙已实时重算！`;
+        
+        // 3. 全局重新渲染
+        renderChain(currentChain);
     }
 
     // 显示成语详情弹窗
     function showIdiomDetails(word) {
         const modal = document.getElementById('idiomModal');
         const info = idiomMap[word] || {};
-
         const py = pinyinPro.pinyin(word, { toneType: 'symbol' });
 
         document.getElementById('modalWord').innerText = word;
@@ -480,38 +480,37 @@
         chain.forEach((word, index) => {
             const row = document.createElement('div');
             row.className = 'idiom-row';
-
-            // 拼音和基础卡片结构
             const py = pinyinPro.pinyin(word, { toneType: 'symbol' });
             
             row.innerHTML = `
                 <div class="idiom-node is-valid" id="node-${index}">
                     <input type="text" class="idiom-input" id="input-${index}" value="${word}" maxlength="4">
                     <span class="node-pinyin" id="pinyin-${index}">${py}</span>
-                    <button class="action-btn view-btn" id="btn-${index}">查看详情</button>
+                    <button class="action-btn" id="btn-${index}">查看详情</button>
                 </div>
             `;
-
             container.appendChild(row);
 
-            // 获取刚创建的 DOM 元素以便绑定动态交互
             const inputEl = row.querySelector(`#input-${index}`);
-            const nodeEl = row.querySelector(`#node-${index}`);
-            const pinyinEl = row.querySelector(`#pinyin-${index}`);
             const btnEl = row.querySelector(`#btn-${index}`);
 
-            // 初始化按钮事件
+            // 详情按钮
             btnEl.onclick = () => showIdiomDetails(word);
 
-            // 【核心功能】监听输入框更改事件（失去焦点和敲击回车时触发查验）
-            inputEl.addEventListener('blur', () => verifyNode(inputEl, nodeEl, pinyinEl, btnEl));
+            // 监听失去焦点和回车
+            inputEl.addEventListener('blur', () => {
+                // 只有当用户真的改了词，才触发联动，防止误触
+                if (inputEl.value.trim() !== currentChain[index]) {
+                    handleNodeChange(index, inputEl);
+                }
+            });
             inputEl.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
-                    inputEl.blur(); // 触发 blur 事件去执行 verifyNode
+                    inputEl.blur();
                 }
             });
 
-            // 如果不是最后一个，添加垂直指示箭头
+            // 垂直箭头
             if (index < chain.length - 1) {
                 const arrow = document.createElement('div');
                 arrow.className = 'arrow-v';
@@ -521,7 +520,7 @@
         });
     }
 
-    // 按钮点击事件
+    // 生成按钮点击
     document.getElementById('startBtn').addEventListener('click', () => {
         const startWord = document.getElementById('startIdiom').value.trim();
         const rule = document.getElementById('ruleSelect').value;
@@ -534,13 +533,15 @@
         }
 
         if (!idiomMap[startWord]) {
-            status.innerText = "词库中未收入初始词，但仍尝试为您生成后续。";
-        } else {
-            status.innerText = "接龙链初始化生成成功！";
+            status.innerText = "该起始词不在词库中，无法生成接龙。";
+            return;
         }
 
-        const chain = generateChain(startWord, rule, maxLen);
-        renderChain(chain);
+        status.innerText = "接龙链初始化成功！";
+        
+        // 初始化全局链条
+        currentChain = generateSubChain(startWord, rule, maxLen, new Set());
+        renderChain(currentChain);
     });
 
     // 弹窗事件
